@@ -12,3 +12,14 @@ class DatosContrato:
         self.titular_pago = titular_pago  # String (Nombre del titular del pago)
         self.fecha_caducidad_tarjeta = fecha_caducidad_tarjeta  # String (MM/AAAA, por ejemplo "12/2025")
 
+    def __str__(self):
+        return f"Referencia del Contrato: {self.referencia_contrato}\n" \
+               f"Fecha de Contrato: {self.fecha_contrato}\n" \
+               f"Fecha de Entrada: {self.fecha_entrada}\n" \
+               f"Fecha de Salida: {self.fecha_salida}\n" \
+               f"Número de Personas: {self.numero_personas}\n" \
+               f"Tipo de Pago: {self.tipo_pago}\n" \
+               f"Fecha de Pago: {self.fecha_pago}\n" \
+               f"Medio de Pago: {self.medio_pago}\n" \
+               f"Titular del Pago: {self.titular_pago}\n" \
+               f"Fecha de Caducidad de la Tarjeta: {self.fecha_caducidad_tarjeta}"
