@@ -36,8 +36,10 @@ def generar_xml(datos_establecimiento: DatosEstablecimiento, datos_contrato: Dat
     contrato_xml = ET.SubElement(comunicacion, "{%s}contrato" % namespace)
     ET.SubElement(contrato_xml, "{%s}referencia" % namespace).text = datos_contrato.referencia_contrato
     ET.SubElement(contrato_xml, "{%s}fechaContrato" % namespace).text = datos_contrato.fecha_contrato.split(" ")[0]
-    ET.SubElement(contrato_xml, "{%s}fechaEntrada" % namespace).text = datos_contrato.fecha_entrada.split(" ")[0]
-    ET.SubElement(contrato_xml, "{%s}fechaSalida" % namespace).text = datos_contrato.fecha_salida.split(" ")[0]
+    ET.SubElement(contrato_xml,
+                  "{%s}fechaEntrada" % namespace).text = f"{datos_contrato.fecha_entrada.split(' ')[0]}T00:00:00"
+    ET.SubElement(contrato_xml,
+                  "{%s}fechaSalida" % namespace).text = f"{datos_contrato.fecha_salida.split(' ')[0]}T00:00:00"
     ET.SubElement(contrato_xml, "{%s}numPersonas" % namespace).text = str(datos_contrato.numero_personas)
 
     pago = ET.SubElement(contrato_xml, "{%s}pago" % namespace)
