@@ -1,91 +1,74 @@
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
+from lxml import etree
 from typing import List
-
 from classes.DatosContrato import DatosContrato
 from classes.DatosEstablecimiento import DatosEstablecimiento
 from classes.DatosViajeros import DatosViajero
 
-
-def pretty_print_xml(root, xml_file):
-    """Formatea un XML usando minidom sin perder namespaces y lo guarda correctamente."""
-
-    # Convertir el árbol de elementos a una cadena de bytes con namespaces
-    xml_str = ET.tostring(root, encoding="utf-8", xml_declaration=True)
-
-    # Reemplazar manualmente el namespace "ns0" con el namespace correcto
-    xml_pretty = xml.dom.minidom.parseString(xml_str).toprettyxml(indent="  ")
-    xml_pretty = xml_pretty.replace("ns0:", "").replace(":ns0", "")
-
-    # Guardar el XML formateado correctamente
-    with open(xml_file, "w", encoding="utf-8") as f:
-        f.write(xml_pretty)
-
-    print(f"✅ XML generado y formateado correctamente en: {xml_file}")
-
-
 def generar_xml(datos_establecimiento: DatosEstablecimiento, datos_contrato: DatosContrato, datos_viajeros: List[DatosViajero]):
-    namespace = "http://www.neg.hospedajes.mir.es/altaParteHospedaje"
-    ET.register_namespace("", namespace)  # Registrar correctamente el namespace
+    nsmap = {"ns2": "http://www.neg.hospedajes.mir.es/altaParteHospedaje"}
+    NS = nsmap["ns2"]
 
-    peticion = ET.Element("{%s}peticion" % namespace)  # Usar namespace en la raíz
-    solicitud = ET.SubElement(peticion, "{%s}solicitud" % namespace)
-    ET.SubElement(solicitud, 'codigoEstablecimiento').text = datos_establecimiento.codigo_establecimiento
-    comunicacion = ET.SubElement(solicitud, "{%s}comunicacion" % namespace)
+    # Crear raíz con prefijo ns2
+    peticion = etree.Element("{%s}peticion" % NS, nsmap=nsmap)
 
-    contrato_xml = ET.SubElement(comunicacion, "{%s}contrato" % namespace)
-    ET.SubElement(contrato_xml, "{%s}referencia" % namespace).text = datos_contrato.referencia_contrato
-    ET.SubElement(contrato_xml, "{%s}fechaContrato" % namespace).text = datos_contrato.fecha_contrato.split(" ")[0]
-    ET.SubElement(contrato_xml,
-                  "{%s}fechaEntrada" % namespace).text = f"{datos_contrato.fecha_entrada.split(' ')[0]}T00:00:00"
-    ET.SubElement(contrato_xml,
-                  "{%s}fechaSalida" % namespace).text = f"{datos_contrato.fecha_salida.split(' ')[0]}T00:00:00"
-    ET.SubElement(contrato_xml, "{%s}numPersonas" % namespace).text = str(datos_contrato.numero_personas)
+    # Bloque solicitud
+    solicitud = etree.SubElement(peticion, "{%s}solicitud" % NS)
+    etree.SubElement(solicitud, "{%s}codigoEstablecimiento" % NS).text = datos_establecimiento.codigo_establecimiento
+    comunicacion = etree.SubElement(solicitud, "{%s}comunicacion" % NS)
 
-    pago = ET.SubElement(contrato_xml, "{%s}pago" % namespace)
-    ET.SubElement(pago, "{%s}tipoPago" % namespace).text = datos_contrato.tipo_pago
-    ET.SubElement(pago, "{%s}fechaPago" % namespace).text = str(datos_contrato.fecha_pago).split(" ")[0]
-    ET.SubElement(pago, "{%s}medioPago" % namespace).text = datos_contrato.medio_pago
-    ET.SubElement(pago, "{%s}titular" % namespace).text = datos_contrato.titular_pago
+    # Bloque contrato
+    contrato_xml = etree.SubElement(comunicacion, "{%s}contrato" % NS)
+    etree.SubElement(contrato_xml, "{%s}referencia" % NS).text = datos_contrato.referencia_contrato
+    etree.SubElement(contrato_xml, "{%s}fechaContrato" % NS).text = datos_contrato.fecha_contrato.split(" ")[0]
+    etree.SubElement(contrato_xml, "{%s}fechaEntrada" % NS).text = f"{datos_contrato.fecha_entrada.split(' ')[0]}T00:00:00"
+    etree.SubElement(contrato_xml, "{%s}fechaSalida" % NS).text = f"{datos_contrato.fecha_salida.split(' ')[0]}T00:00:00"
+    etree.SubElement(contrato_xml, "{%s}numPersonas" % NS).text = str(datos_contrato.numero_personas)
+
+    # Bloque pago
+    pago = etree.SubElement(contrato_xml, "{%s}pago" % NS)
+    etree.SubElement(pago, "{%s}tipoPago" % NS).text = datos_contrato.tipo_pago
+    etree.SubElement(pago, "{%s}fechaPago" % NS).text = str(datos_contrato.fecha_pago).split(" ")[0]
+    etree.SubElement(pago, "{%s}medioPago" % NS).text = datos_contrato.medio_pago
+    etree.SubElement(pago, "{%s}titular" % NS).text = datos_contrato.titular_pago
     if datos_contrato.tipo_pago == 'TARJT':
-        ET.SubElement(pago, "{%s}caducidadTarjeta" % namespace).text = str(datos_contrato.fecha_caducidad_tarjeta).split(" ")[0]
+        etree.SubElement(pago, "{%s}caducidadTarjeta" % NS).text = str(datos_contrato.fecha_caducidad_tarjeta).split(" ")[0]
 
+    # Añadir viajeros
     for viajero in datos_viajeros:
-        anyadir_viajero(comunicacion, viajero, namespace)
+        anyadir_viajero(comunicacion, viajero, NS)  # Siempre como VI
+        if hasattr(viajero, 'rol') and viajero.rol == 'TI':
+            anyadir_viajero(comunicacion, viajero, NS, rol='TI')  # También como TI si aplica
 
-        if viajero.rol == 'TI':
-            anyadir_viajero(comunicacion, viajero, namespace, 'TI')
-
-    xml_file = "comunicacion.xml"
-
-    # ✅ Pasar el XML correctamente formateado
-    pretty_print_xml(peticion, xml_file)
-
+    # Guardar XML
+    tree = etree.ElementTree(peticion)
+    tree.write("comunicacion.xml", encoding="utf-8", xml_declaration=True, pretty_print=True)
+    print("✅ XML generado correctamente como comunicacion.xml")
 
 
-def anyadir_viajero(comunicacion, viajero, namespace, rol='VI'):
-    persona_viajero = ET.SubElement(comunicacion, "{%s}persona" % namespace)
-    ET.SubElement(persona_viajero, "{%s}rol" % namespace).text = rol
-    ET.SubElement(persona_viajero, "{%s}nombre" % namespace).text = viajero.nombre
-    ET.SubElement(persona_viajero, "{%s}apellido1" % namespace).text = viajero.primer_apellido
-    ET.SubElement(persona_viajero, "{%s}apellido2" % namespace).text = viajero.segundo_apellido
-    ET.SubElement(persona_viajero, "{%s}tipoDocumento" % namespace).text = viajero.tipo_documento
-    ET.SubElement(persona_viajero, "{%s}numeroDocumento" % namespace).text = viajero.numero_documento
-    ET.SubElement(persona_viajero, "{%s}soporteDocumento" % namespace).text = viajero.soporte_documento
-    ET.SubElement(persona_viajero, "{%s}fechaNacimiento" % namespace).text = viajero.fecha_nacimiento.split(" ")[0]
-    ET.SubElement(persona_viajero, "{%s}nacionalidad" % namespace).text = viajero.codigo_nacionalidad
+def anyadir_viajero(comunicacion, viajero, NS, rol='VI'):
+    persona = etree.SubElement(comunicacion, f"{{{NS}}}persona")
+    etree.SubElement(persona, f"{{{NS}}}rol").text = rol
+    etree.SubElement(persona, f"{{{NS}}}nombre").text = viajero.nombre
+    etree.SubElement(persona, f"{{{NS}}}apellido1").text = viajero.primer_apellido
+    etree.SubElement(persona, f"{{{NS}}}apellido2").text = viajero.segundo_apellido
+    etree.SubElement(persona, f"{{{NS}}}tipoDocumento").text = viajero.tipo_documento
+    etree.SubElement(persona, f"{{{NS}}}numeroDocumento").text = viajero.numero_documento
+    etree.SubElement(persona, f"{{{NS}}}soporteDocumento").text = viajero.soporte_documento
+    etree.SubElement(persona, f"{{{NS}}}fechaNacimiento").text = viajero.fecha_nacimiento.split(" ")[0]
+    etree.SubElement(persona, f"{{{NS}}}nacionalidad").text = viajero.codigo_nacionalidad
 
-    direccion_xml = ET.SubElement(persona_viajero, "{%s}direccion" % namespace)
-    ET.SubElement(direccion_xml, "{%s}direccion" % namespace).text = viajero.direccion
-
+    direccion = etree.SubElement(persona, f"{{{NS}}}direccion")
+    etree.SubElement(direccion, f"{{{NS}}}direccion").text = viajero.direccion
     if viajero.codigo_pais == 'ESP':
-        ET.SubElement(direccion_xml, "{%s}codigoMunicipio" % namespace).text = viajero.codigo_municipio
+        etree.SubElement(direccion, f"{{{NS}}}codigoMunicipio").text = viajero.codigo_municipio
     else:
-        ET.SubElement(direccion_xml, "{%s}nombreMunicipio" % namespace).text = viajero.nombre_municipio
+        etree.SubElement(direccion, f"{{{NS}}}nombreMunicipio").text = viajero.nombre_municipio
 
-    ET.SubElement(direccion_xml, "{%s}codigoPostal" % namespace).text = viajero.codigo_postal
-    ET.SubElement(direccion_xml, "{%s}pais" % namespace).text = viajero.codigo_pais
+    etree.SubElement(direccion, f"{{{NS}}}codigoPostal").text = viajero.codigo_postal
+    etree.SubElement(direccion, f"{{{NS}}}pais").text = viajero.codigo_pais
 
-    ET.SubElement(persona_viajero, "{%s}telefono" % namespace).text = viajero.telefono
-    if viajero.codigo_parentesco != '':
-        ET.SubElement(persona_viajero, "{%s}parentesco" % namespace).text = viajero.codigo_parentesco
+    etree.SubElement(persona, f"{{{NS}}}telefono").text = viajero.telefono
+    if getattr(viajero, "codigo_parentesco", None):
+        etree.SubElement(persona, f"{{{NS}}}parentesco").text = viajero.codigo_parentesco
